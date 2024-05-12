@@ -3,7 +3,7 @@
 ###############################################################
 #  TITRE: 
 #
-#  AUTEUR:   Xavier
+#  AUTEUR:   Xavier - repris par Rémi
 #  VERSION: 
 #  CREATION:  
 #  MODIFIE: 
@@ -37,33 +37,33 @@ createContainers(){
   CONTAINER_HOME=/home/${CONTAINER_USER}
   CONTAINER_CMD="sudo podman exec "
 
-	# Calcul du id à utiliser
+  # Calcul du id à utiliser
   id_already=`sudo podman ps -a --format '{{ .Names}}' | awk -v user="${CONTAINER_USER}" '$1 ~ "^"user {count++} END {print count}'`
   id_min=$((id_already + 1))
   id_max=$((id_already + ${CONTAINER_NUMBER}))
-  
-	# Création des conteneurs en boucle
-	for i in $(seq $id_min $id_max);do
-		sudo podman run -d --systemd=true --publish-all=true -v /home/rthomas/Documents/learning/ansible/data:/srv/data --name ${CONTAINER_USER}-debian-$i -h ${CONTAINER_USER}-debian-$i docker.io/priximmo/buster-systemd-ssh
-		${CONTAINER_CMD} ${CONTAINER_USER}-debian-$i /bin/sh -c "useradd -m -p sa3tHJ3/KuYvI ${CONTAINER_USER}"
-		${CONTAINER_CMD} ${CONTAINER_USER}-debian-$i /bin/sh -c "mkdir -m 0700 ${CONTAINER_HOME}/.ssh && chown ${CONTAINER_USER}:${CONTAINER_USER} ${CONTAINER_HOME}/.ssh"
-		sudo podman cp ${HOME}/.ssh/id_rsa.pub ${CONTAINER_USER}-debian-$i:${CONTAINER_HOME}/.ssh/authorized_keys
-		${CONTAINER_CMD} ${CONTAINER_USER}-debian-$i /bin/sh -c "chmod 600 ${CONTAINER_HOME}/.ssh/authorized_keys && chown ${CONTAINER_USER}:${CONTAINER_USER} ${CONTAINER_HOME}/.ssh/authorized_keys"
-		${CONTAINER_CMD} ${CONTAINER_USER}-debian-$i /bin/sh -c "echo '${CONTAINER_USER}   ALL=(ALL) NOPASSWD: ALL'>>/etc/sudoers"
-		${CONTAINER_CMD} ${CONTAINER_USER}-debian-$i /bin/sh -c "service ssh start"
-	done
 
-	infosContainers
+  # Création des conteneurs en boucle
+  for i in $(seq $id_min $id_max);do
+    sudo podman run -d --privileged --systemd=true --publish-all=true -v /home/rthomas/Documents/learning/ansible/data:/srv/data --name ${CONTAINER_USER}-debian-$i -h ${CONTAINER_USER}-debian-$i docker.io/remithomasn7/debian_systemd:v1.0
+    ${CONTAINER_CMD} ${CONTAINER_USER}-debian-$i /bin/sh -c "useradd -m -p sa3tHJ3/KuYvI ${CONTAINER_USER}"
+    ${CONTAINER_CMD} ${CONTAINER_USER}-debian-$i /bin/sh -c "mkdir -m 0700 ${CONTAINER_HOME}/.ssh && chown ${CONTAINER_USER}:${CONTAINER_USER} ${CONTAINER_HOME}/.ssh"
+    sudo podman cp ${HOME}/.ssh/id_rsa_ansible.pub ${CONTAINER_USER}-debian-$i:${CONTAINER_HOME}/.ssh/authorized_keys
+    ${CONTAINER_CMD} ${CONTAINER_USER}-debian-$i /bin/sh -c "chmod 600 ${CONTAINER_HOME}/.ssh/authorized_keys && chown ${CONTAINER_USER}:${CONTAINER_USER} ${CONTAINER_HOME}/.ssh/authorized_keys"
+    ${CONTAINER_CMD} ${CONTAINER_USER}-debian-$i /bin/sh -c "echo '${CONTAINER_USER}   ALL=(ALL) NOPASSWD: ALL'>>/etc/sudoers"
+    ${CONTAINER_CMD} ${CONTAINER_USER}-debian-$i /bin/sh -c "service ssh start"
+  done
+
+  infosContainers
 
   exit 0
 }
 
 infosContainers(){
-	echo ""
-	echo "Informations des conteneurs : "
-	echo ""
+  echo ""
+  echo "Informations des conteneurs : "
+  echo ""
   sudo podman ps -aq | awk '{system("sudo podman inspect -f \"{{.Name}} -- IP: {{.NetworkSettings.IPAddress}}\" "$1)}'
-	echo ""
+  echo ""
   exit 0
 }
 
@@ -78,12 +78,12 @@ startContainers(){
 }
 
 stopContainers(){
-  sudo podman ps -a --format {{.Names}} | awk -v user=${CONTAINER_USER} '$1 ~ "^"user {system(print $1" - stopping...";"sudo podman stop "$1)}'
+  sudo podman ps -a --format {{.Names}} | awk -v user=${CONTAINER_USER} '$1 ~ "^"user {print $1" - stopping...";system("sudo podman stop "$1)}'
   infosContainers
 }
 
 createAnsible(){
-	echo ""
+  echo ""
   mkdir -p ${ANSIBLE_DIR}
   echo "all:" > ${ANSIBLE_DIR}/00_inventory.yml
   echo "  vars:" >> ${ANSIBLE_DIR}/00_inventory.yml
@@ -92,7 +92,7 @@ createAnsible(){
   sudo podman ps -aq | awk '{system("sudo podman inspect -f \"    {{.NetworkSettings.IPAddress}}:\" "$1)}' >> ${ANSIBLE_DIR}/00_inventory.yml
   mkdir -p ${ANSIBLE_DIR}/host_vars
   mkdir -p ${ANSIBLE_DIR}/group_vars
-	echo ""
+  echo ""
 }
 
 
@@ -104,24 +104,24 @@ fi
 
 while getopts ":c:ahitsd" options; do
   case "${options}" in 
-		a)
-			createAnsible
-			;;
+    a)
+      createAnsible
+      ;;
     c)
       createContainers ${OPTARG}
       ;;
-		i)
-			infosContainers
-			;;
-		s)
-			startContainers
-			;;
-		t)
-			stopContainers
-			;;
-		d)
-			dropContainers
-			;;
+    i)
+      infosContainers
+      ;;
+    s)
+      startContainers
+      ;;
+    t)
+      stopContainers
+      ;;
+    d)
+      dropContainers
+      ;;
     h)
       help
       exit 1
